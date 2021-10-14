@@ -1,0 +1,46 @@
+#include <windows.h>
+#include "res.h"
+
+1 VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEOS 0x4
+FILETYPE VFT_APP
+
+{
+	BLOCK "StringFileInfo" {
+		BLOCK "040904B0" {
+			VALUE "CompanyName", "Brokepad"
+			VALUE "FileDescription", "An unconventional Notepad replacement"
+			VALUE "FileVersion", "1.0.0.0"
+			VALUE "InternalName", "Brokepad"
+			VALUE "LegalCopyright", "\xA9 Not Microsoft Corporation."
+			VALUE "OriginalFilename", "Brokepad.exe"
+			VALUE "ProductName", "Brokepad"
+			VALUE "ProductVersion", "1.0.0.0"
+		}
+	}
+	BLOCK "VarFileInfo" {
+		VALUE "Translation", 0x409, 1252
+	}
+}
+
+// CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "manifest.xml"
+
+IDI_ICON ICON "icon.ico"
+
+IDI_MENU MENU {
+	POPUP "&File" {
+		MENUITEM "&New\tCtrl+N", SHORTCUT_NEW
+		MENUITEM "&New Window\tCtrl+Shift+N", SHORTCUT_NEW_WINDOW
+		MENUITEM "&Open...\tCtrl+O", SHORTCUT_OPEN
+		MENUITEM "&Save\tCtrl+S", SHORTCUT_SAVE
+		MENUITEM "&Save As...\tCtrl+Shift+S", SHORTCUT_SAVE_AS
+		MENUITEM SEPARATOR
+		MENUITEM "&Exit\tAlt+F4", SHORTCUT_EXIT
+	}
+	POPUP "&Edit"   GRAYED { MENUITEM SEPARATOR }
+	POPUP "&Format" GRAYED { MENUITEM SEPARATOR }
+	POPUP "&View"   GRAYED { MENUITEM SEPARATOR }
+	POPUP "&Help"   GRAYED { MENUITEM SEPARATOR }
+}

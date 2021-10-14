@@ -1,0 +1,11 @@
+#define IDI_ICON 			100
+
+#define IDI_MENU			200
+#define SHORTCUT_NEW		201
+#define SHORTCUT_NEW_WINDOW 202
+#define SHORTCUT_OPEN		203
+#define SHORTCUT_SAVE		204
+#define SHORTCUT_SAVE_AS	205
+#define SHORTCUT_EXIT		206
+
+#define IDI_SAVE_DIALOG		300
