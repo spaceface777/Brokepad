@@ -1,7 +1,9 @@
 #include <windows.h>
 #include "res.h"
 
-1 VERSIONINFO
+1 RT_MANIFEST "manifest.xml"
+
+10 VERSIONINFO
 FILEVERSION 1,0,0,0
 PRODUCTVERSION 1,0,0,0
 FILEOS 0x4
@@ -25,7 +27,11 @@ FILETYPE VFT_APP
 	}
 }
 
-// CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "manifest.xml"
+ASSET_CRUMPLED_PAPER 	RCDATA "..\\assets\\crumpled_paper.wav"
+ASSET_TRYPEWRITER_FONT 	RCDATA "..\\assets\\Kingthings_Trypewriter_2.ttf"
+ASSET_TYPEWRITER_START	RCDATA "..\\assets\\typewriter_start.wav"
+ASSET_TYPEWRITER_END 	RCDATA "..\\assets\\typewriter_end.wav"
+ASSET_TYPEWRITER_RET 	RCDATA "..\\assets\\typewriter_return.wav"
 
 IDI_ICON ICON "icon.ico"
 

@@ -6,8 +6,13 @@
 
 #include "res/res.h"
 
+// TCC needs these listed explicitly:
+#include <mmsystem.h>
+#include <commdlg.h>
+#include <shellapi.h>
+_CRTIMP errno_t __cdecl fopen_s(FILE **_File,const char *_Filename,const char *_Mode);
+
 #define WIN_NAME "Brokepad"
-#define TITLE_SEP " · "
 
 typedef struct Line {
 	char* str;
@@ -41,20 +46,20 @@ int file_modified = 0;
 void update_title(HWND hwnd, int state) {
 	if (state && !file_modified) {
 		file_modified = 1;
-		wchar_t buf[256];
-		swprintf(buf, 256, L"*%hs - Brokepad", cur_filename);
-		SetWindowTextW(hwnd, buf);
+		char buf[256];
+		snprintf(buf, 256, "*%s - Brokepad", cur_filename);
+		SetWindowText(hwnd, buf);
 	} else if (!state) {
 		file_modified = 0;
-		wchar_t buf[256];
-		swprintf(buf, 256, L"%hs - Brokepad", cur_filename);
-		SetWindowTextW(hwnd, buf);
+		char buf[256];
+		snprintf(buf, 256, "%s - Brokepad", cur_filename);
+		SetWindowText(hwnd, buf);
 	}
 }
 
 void move_window(HWND hwnd) {
-	double left = window_left - col*(font_width);
-	double top = window_top - row*(font_height);
+	double left = (double)(window_left - col*(font_width));
+	double top =  (double)(window_top - row*(font_height));
 
 	RECT wRect;
 	GetWindowRect(hwnd, &wRect);
@@ -83,7 +88,7 @@ void move_window(HWND hwnd) {
 		top += y_movement_per_frame;
 
 		SetWindowPos(hwnd, 0, (int)(left+0.5), (int)(top+0.5), 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-		Sleep(1000/fps);
+		Sleep((int)(1000/fps));
 	}
 	handle_events = _old_handle_events;
 }
@@ -95,30 +100,20 @@ void update_window_pos(HWND hwnd) {
 	window_top = wRect.top + row*(font_height);
 }
 
-extern const char _binary_typewriter_start_wav_start;
-extern const char _binary_typewriter_start_wav_end;
-#define typewriter_start_wav		(&_binary_typewriter_start_wav_start)
-#define typewriter_start_wav_len	(&_binary_typewriter_start_wav_end - &_binary_typewriter_start_wav_start)
+char* typewriter_start_wav;
+int   typewriter_start_wav_len;
 
-extern const char _binary_typewriter_end_wav_start;
-extern const char _binary_typewriter_end_wav_end;
-#define typewriter_end_wav		(&_binary_typewriter_end_wav_start)
-#define typewriter_end_wav_len	(&_binary_typewriter_end_wav_end - &_binary_typewriter_end_wav_start)
+char* typewriter_end_wav;
+int   typewriter_end_wav_len;
 
-extern const char _binary_typewriter_return_wav_start;
-extern const char _binary_typewriter_return_wav_end;
-#define typewriter_return_wav		(&_binary_typewriter_return_wav_start)
-#define typewriter_return_wav_len	(&_binary_typewriter_return_wav_end - &_binary_typewriter_return_wav_start)
+char* typewriter_return_wav;
+int   typewriter_return_wav_len;
 
-extern const char _binary_crumpled_paper_wav_start;
-extern const char _binary_crumpled_paper_wav_end;
-#define crumpled_paper_wav		(&_binary_crumpled_paper_wav_start)
-#define crumpled_paper_wav_len	(&_binary_crumpled_paper_wav_end - &_binary_crumpled_paper_wav_start)
+char* crumpled_paper_wav;
+int   crumpled_paper_wav_len;
 
-extern const char _binary_Kingthings_Trypewriter_2_ttf_start;
-extern const char _binary_Kingthings_Trypewriter_2_ttf_end;
-#define Kingthings_Trypewriter_ttf		(&_binary_Kingthings_Trypewriter_2_ttf_start)
-#define Kingthings_Trypewriter_ttf_len	(&_binary_Kingthings_Trypewriter_2_ttf_end - &_binary_Kingthings_Trypewriter_2_ttf_start)
+char* Kingthings_Trypewriter_ttf;
+int   Kingthings_Trypewriter_ttf_len;
 
 typedef enum Sound {
 	TYPEWRITER_START = 1,
@@ -143,7 +138,9 @@ int load_file(const char* path) {
 	}
 	row = 0, col = 0;
 
-	FILE* f = fopen(path, "rb");
+	FILE* f = 0;
+	fopen_s(&f, path, "rb");
+	if (!f) return -1;
 
 	const int m = max_col+1;
 	char line_buf[128];
@@ -170,7 +167,10 @@ int load_file(const char* path) {
 }
 
 int save_file(const char* path) {
-	FILE* f = fopen(path, "wb");
+	FILE* f = 0;
+	fopen_s(&f, path, "wb");
+	if (!f) return -1;
+
 	for (int i=0; i<nr_lines; i++) {
 		Line line = lines[i];
 		char* str = line.str;
@@ -201,6 +201,8 @@ void CTRL_SHIFT_N() {
 	si.cb = sizeof(si);
 	PROCESS_INFORMATION pi;
 	CreateProcess(NULL, GetCommandLine(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+	(void)(pi.hProcess);
+	(void)(pi.hThread);
 }
 
 #define new_OPENFILENAMEA(filename) \
@@ -220,12 +222,14 @@ void CTRL_O(HWND hwnd) {
 	GetOpenFileNameA(&Ofn);
 
 	load_file(Ofn.lpstrFile);
+	if (!Ofn.lpstrFile || !*Ofn.lpstrFile) return;
 
 	char fname[256];
 	char ext[256];
-	_splitpath(filename, 0, 0, fname, ext);
-	cur_filename = calloc(strlen(fname) + strlen(ext) + 2, 1);
-	sprintf(cur_filename, "%s%s", fname, ext);
+	_splitpath_s(filename, 0, 0, 0, 0, fname, sizeof(fname), ext, sizeof(ext));
+	int size = strlen(fname) + strlen(ext) + 2;
+	cur_filename = calloc(size, 1);
+	snprintf(cur_filename, size, "%s%s", fname, ext);
 
 	update_title(hwnd, 0);
 
@@ -243,9 +247,10 @@ void CTRL_S(HWND hwnd, char* filename) {
 
 	char fname[256];
 	char ext[256];
-	_splitpath(filename, 0, 0, fname, ext);
-	cur_filename = calloc(strlen(fname) + strlen(ext) + 2, 1);
-	sprintf(cur_filename, "%s%s", fname, ext);
+	_splitpath_s(filename, 0, 0, 0, 0, fname, sizeof(fname), ext, sizeof(ext));
+	int size = strlen(fname) + strlen(ext) + 2;
+	cur_filename = calloc(size, 1);
+	snprintf(cur_filename, size, "%s%s", fname, ext);
 
 	update_title(hwnd, 0);
 }
@@ -282,9 +287,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 		char fname[256];
 		char ext[256];
-		_splitpath(filename, 0, 0, fname, ext);
-		cur_filename = calloc(strlen(fname) + strlen(ext) + 2, 1);
-		sprintf(cur_filename, "%s%s", fname, ext);
+		_splitpath_s(filename, 0, 0, 0, 0, fname, sizeof(fname), ext, sizeof(ext));
+		int size = strlen(fname) + strlen(ext) + 2;
+		cur_filename = calloc(size, 1);
+		snprintf(cur_filename, size, "%s%s", fname, ext);
 
 		update_title(hwnd, 0);
 
@@ -298,7 +304,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		if (file_modified) {
 			FlashWindow(hwnd, TRUE);
 			char buf[1024];
-			sprintf(buf, "Do you want to save changes to %s?", cur_filename);
+			snprintf(buf, sizeof(buf), "Do you want to save changes to %s?", cur_filename);
 			int ret = MessageBox(hwnd, buf, WIN_NAME, MB_YESNOCANCEL);
 			if (ret == IDYES) {
 				CTRL_S(hwnd, cur_filename);
@@ -334,10 +340,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		PAINTSTRUCT ps = (PAINTSTRUCT){0};
 		HDC hdc = BeginPaint(hwnd, &ps);
 
-		FillRect(hdc, &ps.rcPaint, (HBRUSH)COLOR_WINDOW);
+		FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW+1));
 
 		RECT rect = window_rect;
-		FillRect(hdc, &rect, (HBRUSH)(COLOR_WINDOW+1));
 
 		SetBkMode(hdc, TRANSPARENT);
 
@@ -480,7 +485,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 void init_font(HWND hwnd) {
 	DWORD __num_fonts = 1;
-	AddFontMemResourceEx((void*)Kingthings_Trypewriter_ttf, Kingthings_Trypewriter_ttf_len, 0, &__num_fonts);
+	AddFontMemResourceEx(Kingthings_Trypewriter_ttf, Kingthings_Trypewriter_ttf_len, 0, &__num_fonts);
 
 	(void)hwnd;
 	LOGFONT tmp = {
@@ -498,11 +503,34 @@ void init_font(HWND hwnd) {
 	max_row = content_height / font_height - 3;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	(void)hPrevInstance;
 	(void)lpCmdLine;
 
-	puts("started");
+	printf("hi");
+	fflush(stdout);
+
+	HRSRC a;
+
+	a = FindResource(0, MAKEINTRESOURCE(ASSET_TRYPEWRITER_FONT), RT_RCDATA);
+	Kingthings_Trypewriter_ttf_len = SizeofResource(0, a);
+	Kingthings_Trypewriter_ttf = LockResource(LoadResource(0, a));
+
+	a = FindResource(0, MAKEINTRESOURCE(ASSET_TYPEWRITER_START), RT_RCDATA);
+	typewriter_start_wav_len = SizeofResource(0, a);
+	typewriter_start_wav = LockResource(LoadResource(0, a));
+
+	a = FindResource(0, MAKEINTRESOURCE(ASSET_TYPEWRITER_END), RT_RCDATA);
+	typewriter_end_wav_len = SizeofResource(0, a);
+	typewriter_end_wav = LockResource(LoadResource(0, a));
+
+	a = FindResource(0, MAKEINTRESOURCE(ASSET_TYPEWRITER_RET), RT_RCDATA);
+	typewriter_return_wav_len = SizeofResource(0, a);
+	typewriter_return_wav = LockResource(LoadResource(0, a));
+
+	a = FindResource(0, MAKEINTRESOURCE(ASSET_CRUMPLED_PAPER), RT_RCDATA);
+	crumpled_paper_wav_len = SizeofResource(0, a);
+	crumpled_paper_wav = LockResource(LoadResource(0, a));
 
 	HICON hIcon = (HICON)LoadImageA(hInstance, MAKEINTRESOURCEA(IDI_ICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_SHARED);
 
@@ -539,7 +567,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		return 0;
 	}
 
-	SetWindowTextW(hwnd, L"Untitled - Brokepad");
+	SetWindowText(hwnd, "Untitled - Brokepad");
 
 	ShowWindow(hwnd, nCmdShow);
 
@@ -555,6 +583,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	UpdateWindow(hwnd);
 
 	lines = calloc(max_row+1, sizeof(Line));
+	if (!lines) return -1;
 	for (int i = 0; i <= max_row; i++) {
 		lines[i].str = calloc(max_col+1, sizeof(char));
 	}

@@ -1,37 +1,27 @@
 @echo off
 setlocal enabledelayedexpansion
 
+goto :cont
+
+:error
+echo error: program exited with code %errorlevel%
+exit /b %errorlevel%
+
+
+:cont
 cd /d %~dp0
 
-if not exist "assets\compiled\" mkdir assets\compiled
-for /f "usebackq delims=|" %%f in (`dir /b /a-d "assets\*.*"`) do (
-	@REM set should_compile=0
-	@REM if not exist "assets\compiled\%%f.o" (
-	@REM	 set should_compile=1
-	@REM ) else (
-	@REM	 FOR /F "tokens=* USEBACKQ" %%g IN (`powershell -NoProfile -NonInteractive -c echo (^(^[DateTimeOffset]^(Get-Item "assets\compiled\%%f.o"^).LastWriteTime^).ToUnixTimeSeconds^(^) - ^(^[DateTimeOffset]^(Get-Item "assets\%%f"^).LastWriteTime^).ToUnixTimeSeconds^(^)^)`) do (SET "tdiff=%%g")
-	@REM	 if !tdiff! lss 0 (
-	@REM		 set should_compile=1
-	@REM	 )
-	@REM )
-
-	@REM if "!should_compile!"=="1" (
-		@REM echo Compiling assets\compiled\%%f.o...
-		pushd assets
-		ld -r -b binary -o "compiled\%%f.o" "%%f"
-		popd
-	@REM )
-)
-
 pushd res
-windres res.rc res.o
+windres res.rc res.o || goto :error
 popd
 
-set CFLAGS=-Wall -Wextra -Werror -o Brokepad.exe  -Xlinker -Map=output2.map  ./brokepad.c -lwinmm -lgdi32 -lComdlg32 assets/compiled/*.o res/res.o
+set CFLAGS=-Wall -Wextra -Werror -o Brokepad.exe ./brokepad.c -lwinmm -lgdi32 -lComdlg32 -lshell32 res/res.o
 
 if "%1"=="prod" (
-	gcc -Os -g0 -DNDEBUG -mwindows -Wl,--gc-sections,-u,main %CFLAGS%
-	strip Brokepad.exe
+	gcc -Os -g0 -flto -DNDEBUG -mwindows -Wl,--gc-sections,-u,main %CFLAGS% || goto :error
+	strip Brokepad.exe || goto :error
+) else if "%1"=="tcc" (
+	tcc -g3 %CFLAGS% || goto :error
 ) else (
-	gcc -O0 -g3 %CFLAGS%
+	gcc -O0 -g3 %CFLAGS% || goto :error
 )
